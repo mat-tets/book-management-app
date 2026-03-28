@@ -1,0 +1,156 @@
+.root {
+  display: grid;
+  gap: var(--space-2xl);
+}
+
+.header {
+  display: grid;
+  gap: var(--space-2xs);
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: var(--space-2xs);
+  font-size: var(--text-xs);
+}
+
+.title {
+  font-size: var(--text-2xl);
+}
+
+.sub {
+  color: var(--color-accent-300);
+}
+
+.content {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: var(--space-3xl);
+}
+
+.coverPanel {
+  display: grid;
+  grid-template-rows: 530px 100px;
+  gap: var(--space-2xl);
+}
+
+.coverCard {
+  display: grid;
+  gap: var(--space-2xs);
+  padding: var(--space-xl);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--box-shadow);
+}
+
+.coverImage {
+  width: 100%;
+  aspect-ratio: 1 / 1.41;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--box-shadow);
+  overflow: hidden;
+}
+
+.coverImage img {
+  object-fit: cover;
+}
+
+.coverMeta {
+  display: grid;
+  gap: var(--space-3xs);
+}
+
+.coverTitle {
+  font-weight: bold;
+}
+
+.coverSubtitle {
+  font-size: var(--text-sm);
+}
+
+.noticeCard {
+  display: grid;
+  gap: var(--space-3xs);
+  padding: var(--space-xl);
+  border-radius: var(--radius-xl);
+  background-color: var(--color-accent-50);
+  box-shadow: var(--box-shadow);
+}
+
+.noticeTitle {
+  color: var(--color-accent-500);
+  font-weight: bold;
+}
+
+.noticeText {
+  font-size: var(--text-sm);
+}
+
+.formCard {
+  display: grid;
+  gap: var(--space-2xl);
+  padding: var(--space-3xl);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--box-shadow);
+}
+
+.formCard h2 {
+  font-size: var(--text-lg);
+}
+
+.formCard .eyebrow {
+  letter-spacing: var(--text-3xs);
+  font-size: var(--text-xs);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  align-items: start;
+  gap: var(--space-xl);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-2xs);
+  font-size: var(--text-sm);
+  font-weight: bold;
+}
+
+.readonly {
+  display: grid;
+  align-items: center;
+  padding: var(--space-sm);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-base-300);
+  background: var(--color-base-300);
+}
+
+.select {
+  width: 100%;
+  padding: var(--space-sm);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-base-300);
+  background: var(--color-base-100);
+  transition:
+    border 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--color-main-500);
+  box-shadow: var(--box-shadow);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: flex-end;
+}
+
+.actions button {
+  max-width: 8rem;
+  height: 3rem;
+  font-size: var(--text-sm);
+  border-radius: var(--radius-3xl);
+}

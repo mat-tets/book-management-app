@@ -1,0 +1,89 @@
+:root {
+  /* tailwindcss Neutral */
+  --color-base-bg: #fff;
+  --color-base-50: #fafafa;
+  --color-base-100: #f5f5f5;
+  --color-base-200: #e5e5e5;
+  --color-base-300: #d4d4d4;
+  --color-base-400: #a3a3a3;
+  --color-base-500: #737373;
+  --color-base-600: #525252;
+  --color-base-700: #404040;
+  --color-base-800: #262626;
+  --color-base-900: #171717;
+
+  /* tailwindcss Blue */
+  --color-main-50: #eff6ff;
+  --color-main-100: #dbeafe;
+  --color-main-200: #bfdbfe;
+  --color-main-300: #93c5fd;
+  --color-main-400: #60a5fa;
+  --color-main-500: #3b82f6;
+  --color-main-600: #2563eb;
+  --color-main-700: #1d4ed8;
+  --color-main-800: #1e40af;
+  --color-main-900: #1e3a8a;
+
+  /* tailwindcss Red */
+  --color-accent-50: #fef2f2;
+  --color-accent-100: #fee2e2;
+  --color-accent-200: #fecaca;
+  --color-accent-300: #fca5a5;
+  --color-accent-400: #f87171;
+  --color-accent-500: #ef4444;
+  --color-accent-600: #dc2626;
+  --color-accent-700: #b91c1c;
+  --color-accent-800: #991b1b;
+  --color-accent-900: #7f1d1d;
+
+  --space-3xs: 0.35rem;
+  --space-2xs: 0.5rem;
+  --space-xs: 0.7rem;
+  --space-sm: 0.85rem;
+  --space-md: 1rem;
+  --space-lg: 1.2rem;
+  --space-xl: 1.5rem;
+  --space-2xl: 2rem;
+  --space-3xl: 3rem;
+
+  --text-3xs: 0.35rem;
+  --text-2xs: 0.5rem;
+  --text-xs: 0.7rem;
+  --text-sm: 0.85rem;
+  --text-md: 1rem;
+  --text-lg: 1.2rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+  --text-3xl: 3rem;
+
+  --radius-3xs: 0.175rem;
+  --radius-2xs: 0.25rem;
+  --radius-xs: 0.35rem;
+  --radius-sm: 0.425rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.6rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+
+  --aside-height: 700px;
+
+  --box-shadow: rgba(0, 0, 0, 0.15) 0px 2px 8px;
+
+  --font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+html {
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+
+body {
+  color: var(--color-base-700);
+  background-color: var(--color-base-bg);
+  font-family: var(--font-family);
+}
+
+body a {
+  color: var(--color-main-500);
+}

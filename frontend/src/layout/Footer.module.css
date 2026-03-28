@@ -1,0 +1,22 @@
+.root {
+  padding: var(--space-xl);
+  background-color: var(--color-base-100);
+}
+
+.main {
+  display: flex;
+  justify-content: space-around;
+  gap: 20%;
+  align-items: center;
+}
+
+.logo {
+  transform: scale(80%);
+  color: var(--color-main-500);
+}
+
+.license {
+  display: grid;
+  font-size: var(--text-sm);
+  font-weight: bold;
+}

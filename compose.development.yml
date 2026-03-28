@@ -1,0 +1,30 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      target: dev
+    environment:
+      NODE_ENV: "development"
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    command: ["npm", "run", "dev"]
+
+  database:
+    ports:
+      - "5432:5432"
+
+  storage:
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+
+  mail:
+    image: axllent/mailpit:latest
+    networks:
+      - backend-net
+    ports:
+      - "1025:1025"
+      - "8025:8025"

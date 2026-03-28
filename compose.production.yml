@@ -1,0 +1,18 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      target: prod
+    depends_on:
+      - backend
+    networks:
+      - frontend-net
+    ports:
+      - "80:80"
+
+  backend:
+    environment:
+      NODE_ENV: "production"
+    networks:
+      - backend-net
+      - frontend-net

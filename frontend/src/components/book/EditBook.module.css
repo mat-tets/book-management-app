@@ -1,0 +1,220 @@
+.root {
+  display: grid;
+  gap: var(--space-3xl);
+}
+
+.header {
+  display: grid;
+  gap: var(--space-2xs);
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: var(--space-2xs);
+  font-size: var(--text-xs);
+}
+
+.title {
+  font-size: var(--text-2xl);
+}
+
+.sub {
+  color: var(--color-accent-300);
+}
+
+.content {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: var(--space-3xl);
+}
+
+.coverPanel {
+  display: grid;
+  grid-template-rows: 530px 200px;
+  gap: var(--space-2xl);
+}
+
+.coverCard {
+  display: grid;
+  gap: var(--space-2xs);
+  padding: var(--space-xl);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--box-shadow);
+}
+
+.coverImage {
+  width: 100%;
+  aspect-ratio: 1 / 1.41;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-base-300);
+  box-shadow: var(--box-shadow);
+  overflow: hidden;
+}
+
+.coverImage img {
+  object-fit: cover;
+}
+
+.coverMeta {
+  display: grid;
+  gap: var(--space-3xs);
+}
+
+.coverTitle {
+  font-weight: bold;
+}
+
+.coverSubtitle {
+  font-size: var(--text-sm);
+}
+
+.uploadCard {
+  display: grid;
+  grid-template-rows: 1fr 3fr;
+  padding: var(--space-xl);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--box-shadow);
+  font-size: var(--text-sm);
+  font-weight: bold;
+}
+
+.fileLabel {
+  display: grid;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--text-xs);
+}
+
+.fileInput {
+  width: 100%;
+  border-radius: var(--radius-xs);
+  background: var(--color-base-100);
+}
+
+.uploadCard button {
+  border-radius: var(--radius-md);
+  background: var(--color-base-300);
+}
+
+.formCard {
+  display: grid;
+  gap: var(--space-2xl);
+  padding: var(--space-3xl);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--box-shadow);
+}
+
+.formCard h3 {
+  font-size: var(--text-lg);
+}
+
+.formCard .eyebrow {
+  letter-spacing: var(--text-3xs);
+  font-size: var(--text-xs);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-xl);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-2xs);
+  font-size: var(--text-sm);
+  font-weight: bold;
+}
+
+.required::after {
+  content: "必須";
+  margin-left: var(--space-2xs);
+  color: var(--color-accent-500);
+  font-size: var(--text-xs);
+}
+
+.textInput {
+  width: 100%;
+  padding: var(--space-sm);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-base-300);
+  font-size: var(--text-sm);
+  background: var(--color-base-100);
+  transition:
+    border 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.textInput:focus {
+  outline: none;
+  border-color: var(--color-main-500);
+  box-shadow: var(--box-shadow);
+}
+
+.authors {
+  display: grid;
+  gap: var(--space-md);
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+}
+
+.sectionHeader button {
+  width: 8rem;
+  height: 3rem;
+  font-size: var(--text-sm);
+  border-radius: var(--radius-3xl);
+}
+
+.authorList {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.authorCard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm);
+  background: var(--color-main-50);
+  border-radius: var(--radius-sm);
+}
+
+.authorFields {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-md);
+}
+
+.removeButton {
+  padding: var(--space-xs) var(--space-md);
+  color: var(--color-accent-500);
+  background: var(--color-accent-50);
+  border-radius: var(--radius-2xs);
+  box-shadow: var(--box-shadow);
+  font-size: var(--text-sm);
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.removeButton:hover {
+  color: var(--color-base-bg);
+  background-color: var(--color-accent-500);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: flex-end;
+}
+
+.actions button {
+  width: 8rem;
+  height: 3rem;
+  font-size: var(--text-sm);
+  border-radius: var(--radius-3xl);
+}

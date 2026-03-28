@@ -1,0 +1,54 @@
+.button {
+  width: 100%;
+  height: 100%;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  transition:
+    background-color 0.3s ease,
+    opacity 0.3s ease,
+    transform 0.05s ease;
+}
+
+.button:active {
+  transform: translateY(2px);
+}
+
+.button:focus {
+  outline: none;
+  border-color: var(--color-main-500);
+  box-shadow: var(--box-shadow);
+}
+
+.primary {
+  color: var(--color-base-bg);
+  background-color: var(--color-main-500);
+}
+
+.primary:hover {
+  background-color: var(--color-main-900);
+}
+
+.secondary {
+  color: var(--color-base-800);
+  background-color: var(--color-base-300);
+}
+
+.secondary:hover {
+  background-color: var(--color-base-500);
+}
+
+.danger {
+  color: var(--color-base-bg);
+  background-color: var(--color-accent-500);
+}
+
+.danger:hover {
+  background-color: var(--color-accent-900);
+}
+
+.disabled,
+.button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}

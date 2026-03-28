@@ -1,0 +1,116 @@
+.root {
+  display: grid;
+  gap: var(--space-2xl);
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.shell {
+  display: grid;
+  gap: var(--space-2xl);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px;
+  padding: var(--space-2xl);
+  box-shadow: var(--box-shadow);
+  border-radius: var(--radius-xl);
+}
+
+.header {
+  display: grid;
+  gap: var(--space-2xs);
+}
+
+.title {
+  font-size: var(--text-2xl);
+  text-align: center;
+}
+
+.sub {
+  text-align: center;
+}
+
+.content {
+  display: grid;
+  gap: var(--space-xl);
+}
+
+.main {
+  display: grid;
+  gap: var(--space-xl);
+}
+
+.main a {
+  text-align: end;
+  text-decoration: none;
+}
+
+.aside {
+  display: grid;
+  gap: var(--space-xl);
+}
+
+.forgotPassword {
+  text-align: end;
+}
+
+.signUp {
+  padding: var(--space-md);
+  border: 1px solid var(--color-main-500);
+  border-radius: 999rem;
+  text-align: center;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.signUp:hover {
+  color: var(--color-base-bg);
+  background-color: var(--color-main-500);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-2xs);
+  font-size: var(--text-sm);
+  font-weight: bold;
+}
+
+.textInput {
+  width: 100%;
+  padding: var(--space-sm);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-base-300);
+  font-size: var(--text-sm);
+  background: var(--color-base-100);
+  transition:
+    border 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.textInput:focus {
+  outline: none;
+  border-color: var(--color-main-500);
+  box-shadow: var(--box-shadow);
+}
+
+.content button {
+  padding: var(--space-md);
+  color: var(--color-base-bg);
+  background-color: var(--color-main-500);
+  border-radius: var(--radius-lg);
+}
+
+.opt {
+  display: flex;
+  justify-content: space-between;
+}
+
+.eyes {
+  display: flex;
+  gap: var(--space-xs);
+  user-select: none;
+  accent-color: var(--color-accent-500);
+}

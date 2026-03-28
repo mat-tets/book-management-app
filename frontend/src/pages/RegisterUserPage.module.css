@@ -1,0 +1,174 @@
+.root {
+  display: grid;
+  gap: var(--space-3xl);
+}
+
+.header {
+  display: grid;
+  gap: var(--space-2xs);
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  letter-spacing: var(--space-2xs);
+  font-size: var(--text-xs);
+}
+
+.title {
+  font-size: var(--text-2xl);
+}
+
+.sub {
+  color: var(--color-accent-300);
+}
+
+.content {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: var(--space-3xl);
+}
+
+.iconPanel {
+  width: 100%;
+}
+
+.iconCard {
+  display: grid;
+  grid-template-rows: 320px 1fr;
+  gap: var(--space-md);
+}
+
+.iconImage {
+  border-radius: 999rem;
+  border: 1px solid var(--color-base-300);
+  box-shadow: var(--box-shadow);
+}
+
+.iconImage img {
+  width: 100%;
+  height: 100%;
+}
+
+.userName {
+  font-weight: bold;
+}
+
+.formCard {
+  display: grid;
+  gap: var(--space-2xl);
+  padding: var(--space-3xl);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--box-shadow);
+}
+
+.formCard h3 {
+  font-size: var(--text-lg);
+}
+
+.formCard .eyebrow {
+  letter-spacing: var(--text-3xs);
+  font-size: var(--text-xs);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-xl);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-2xs);
+  font-size: var(--text-sm);
+  font-weight: bold;
+}
+
+.required::after {
+  content: "必須";
+  margin-left: var(--space-2xs);
+  color: var(--color-accent-500);
+  font-size: var(--text-xs);
+}
+
+.password {
+  display: grid;
+  grid-template-columns: 3fr 1fr;
+  gap: var(--space-xs);
+}
+
+.password button {
+  border-radius: var(--radius-xs);
+}
+
+.textInput {
+  width: 100%;
+  padding: var(--space-sm);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-base-300);
+  font-size: var(--text-sm);
+  background: var(--color-base-100);
+  transition:
+    border 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.textInput:focus {
+  outline: none;
+  border-color: var(--color-main-500);
+  box-shadow: var(--box-shadow);
+}
+
+.readonly {
+  display: grid;
+  align-items: center;
+  padding: var(--space-sm);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-base-300);
+  background: var(--color-base-300);
+}
+
+.select {
+  width: 100%;
+  padding: var(--space-sm);
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-base-300);
+  background: var(--color-base-100);
+  transition:
+    border 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--color-main-500);
+  box-shadow: var(--box-shadow);
+}
+
+.removeButton {
+  padding: var(--space-xs) var(--space-md);
+  color: var(--color-accent-500);
+  background: var(--color-accent-50);
+  border-radius: var(--radius-2xs);
+  box-shadow: var(--box-shadow);
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.removeButton:hover {
+  color: var(--color-base-bg);
+  background-color: var(--color-accent-500);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: flex-end;
+}
+
+.actions button {
+  max-width: 8rem;
+  height: 3rem;
+  font-size: var(--text-sm);
+  border-radius: var(--radius-3xl);
+}

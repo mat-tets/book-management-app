@@ -1,0 +1,89 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      target: prod
+    environment:
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      DATABASE_URL: ${DATABASE_URL}
+      STORAGE_ENDPOINT: storage
+      STORAGE_PORT: "9000"
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY}
+      STORAGE_BUCKET: ${STORAGE_BUCKET}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_SECURE: ${SMTP_SECURE}
+      SMTP_FROM: ${SMTP_FROM}
+      APP_BASE_URL: ${APP_BASE_URL}
+      TZ: "Asia/Tokyo"
+    depends_on:
+      - database
+      - storage
+      - storage-init
+    networks:
+      - backend-net
+    expose:
+      - "3001"
+
+  database:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      TZ: "Asia/Tokyo"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - backend-net
+    expose:
+      - "5432"
+
+  storage:
+    image: quay.io/minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${STORAGE_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${STORAGE_SECRET_KEY}
+      TZ: "Asia/Tokyo"
+    volumes:
+      - minio-data:/data
+    networks:
+      - backend-net
+    expose:
+      - "9000"
+      - "9001"
+
+  storage-init:
+    image: quay.io/minio/mc:latest
+    depends_on:
+      - storage
+    volumes:
+      - ./storage/book-images:/seed/book-images:ro
+    networks:
+      - backend-net
+    environment:
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY}
+      STORAGE_SECRET_KEY: ${STORAGE_SECRET_KEY}
+      STORAGE_BUCKET: ${STORAGE_BUCKET}
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set myminio http://storage:9000 $$STORAGE_ACCESS_KEY $$STORAGE_SECRET_KEY; do sleep 1; done;
+      mc mb -p myminio/$$STORAGE_BUCKET || true;
+      mc anonymous set download myminio/$$STORAGE_BUCKET || true;
+      printf '{\"CORSRules\":[{\"AllowedOrigins\":[\"*\"],\"AllowedMethods\":[\"GET\",\"PUT\"],\"AllowedHeaders\":[\"*\"],\"ExposeHeaders\":[\"ETag\"],\"MaxAgeSeconds\":3000}]}' > /tmp/cors.json;
+      mc cors set myminio/$$STORAGE_BUCKET /tmp/cors.json || true;
+      mc cp --recursive /seed/book-images/ myminio/$$STORAGE_BUCKET/ || true;
+      "
+
+volumes:
+  pgdata:
+  minio-data:
+
+networks:
+  backend-net:
+    driver: bridge
+  frontend-net:
+    driver: bridge

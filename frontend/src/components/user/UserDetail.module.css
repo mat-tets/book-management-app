@@ -1,0 +1,55 @@
+.root {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.header {
+  display: grid;
+  align-items: center;
+  gap: var(--space-3xs);
+}
+
+.titleTranscription {
+  font-size: var(--text-sm);
+  font-weight: bold;
+}
+
+.title {
+  font-size: var(--text-lg);
+}
+
+.author {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  font-size: var(--text-sm);
+  font-weight: bold;
+}
+
+.author span {
+  font-size: var(--text-xs);
+}
+
+.detail {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+}
+
+.detail label {
+  font-size: var(--text-xs);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-3xs);
+  font-size: var(--text-sm);
+  font-weight: bold;
+}
+
+.readonly {
+  display: grid;
+  align-items: center;
+  padding: 0 var(--space-xs);
+}

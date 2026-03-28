@@ -1,0 +1,66 @@
+.root {
+  height: 56px;
+}
+
+.bar {
+  display: flex;
+  width: 360px;
+  height: 100%;
+  border-radius: 999rem;
+  overflow: hidden;
+  background-color: var(--color-base-bg);
+}
+
+.bar.primary {
+  border: 2px solid var(--color-main-500);
+}
+
+.bar.danger {
+  border: 2px solid var(--color-accent-300);
+}
+
+.bar input {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  padding: 0 15px;
+  font-size: var(--text-sm);
+  border-top-left-radius: 999rem;
+  border-bottom-left-radius: 999rem;
+}
+
+.bar button {
+  position: relative;
+  background-color: var(--color-base-bg);
+  padding: 0 1.5rem;
+  transition: background-color 0.5s ease;
+}
+
+.bar button.primary {
+  color: var(--color-main-500);
+  border-left: 0.15rem solid var(--color-main-500);
+}
+
+.bar button.danger {
+  color: var(--color-accent-300);
+  border-left: 0.15rem solid var(--color-accent-300);
+}
+
+.bar button svg {
+  position: absolute;
+  top: 50%;
+  right: 50%;
+  transform: translate(25%, -50%);
+  width: 16px;
+  height: 16px;
+}
+
+.bar button.primary:hover {
+  color: var(--color-base-bg);
+  background-color: var(--color-main-500);
+}
+
+.bar button.danger:hover {
+  color: var(--color-base-bg);
+  background-color: var(--color-accent-300);
+}

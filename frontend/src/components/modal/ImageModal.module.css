@@ -1,0 +1,45 @@
+.root {
+  display: grid;
+  grid-template-columns: 40% 45%;
+  justify-content: space-around;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.image img {
+  width: 100%;
+  aspect-ratio: 1 / 1.41;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-base-300);
+  box-shadow: var(--box-shadow);
+  object-fit: cover;
+}
+
+.image svg {
+  width: 100%;
+  border-radius: 999rem;
+  border: 1px solid var(--color-base-300);
+  box-shadow: var(--box-shadow);
+  object-fit: cover;
+}
+
+.main {
+  display: grid;
+  align-items: center;
+  height: 100%;
+  color: var(--color-base-700);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: flex-end;
+}
+
+.actions button {
+  max-width: 8rem;
+  height: 3rem;
+  font-size: var(--text-sm);
+  border-radius: var(--radius-3xl);
+}
