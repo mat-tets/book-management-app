@@ -49,8 +49,17 @@ router.post(
         stockCount,
         authors,
       } = req.body;
+      const trimmedTitle = String(title ?? "").trim();
+      const normalizedTitleTranscription = toNullIfEmpty(
+        String(titleTranscription ?? "").trim(),
+      );
+      const normalizedEdition = toNullIfEmpty(String(edition ?? "").trim());
+      const normalizedPublishDate = toDateYmdOrNull(
+        String(publishDate ?? "").trim(),
+      );
+      const normalizedAuthors = Array.isArray(authors) ? authors : [];
 
-      if (!title || !isbn) {
+      if (!trimmedTitle || !isbn) {
         return res.status(400).json({
           success: false,
           message: "書籍名, ISBN は必須です。",
@@ -58,128 +67,127 @@ router.post(
         });
       }
 
-      // クエリの開始
-      await client.query("BEGIN");
+      try {
+        // クエリの開始
+        await client.query("BEGIN");
 
-      // publishers テーブルに登録
-      // 同名の出版社がすでにある場合は登録しない
-      const publisherId = await getOrCreateByName(
-        client,
-        "publishers",
-        publisherName,
-      );
-
-      // genres テーブルに登録
-      // 同名のジャンルがすでにある場合は登録しない
-      const genreId = await getOrCreateByName(client, "genres", genre);
-
-      // books テーブルに登録
-      const insertBookResult = await client.query(
-        `
-        INSERT INTO 
-          books (
-            title,
-            title_transcription,
-            edition,
-            publisher_id,
-            publish_date,
-            pages,
-            genre_id,
-            isbn,
-            stock_count
-          )
-        VALUES (
-          $1, $2, $3, $4, $5::date, $6, $7, $8, $9
-        )
-        RETURNING
-          id
-        ;
-        `,
-        [
-          title.trim(),
-          toNullIfEmpty(titleTranscription.trim()),
-          toNullIfEmpty(edition.trim()),
-          publisherId,
-          toDateYmdOrNull(publishDate.trim()),
-          pages,
-          genreId,
-          normalizeISBN(isbn),
-          stockCount,
-        ],
-      );
-      const bookId = insertBookResult.rows[0].id;
-
-      // authors テーブル & 中間テーブル book_authors 登録
-      for (const author of authors) {
-        const { name, nameTranscription } = author;
-
-        // 同名の著者がすでにいるか確認（完全一致）
-        const existingAuthorResult = await client.query(
-          `
-          SELECT
-            id
-          FROM
-            authors
-          WHERE
-            name = $1
-            AND name_transcription IS NOT DISTINCT
-          FROM 
-            $2
-          LIMIT
-            1
-          ;
-          `,
-          [name, nameTranscription],
+        // publishers テーブルに登録
+        // 同名の出版社がすでにある場合は登録しない
+        const publisherId = await getOrCreateByName(
+          client,
+          "publishers",
+          publisherName,
         );
-        const authorId =
-          existingAuthorResult.rows.length > 0
-            ? existingAuthorResult.rows[0].id
-            : (
-                await client.query(
-                  `
-                  INSERT INTO
-                    authors (
-                      name,
-                      name_transcription
-                    )
-                  VALUES (
-                    $1, $2
-                  )
-                  RETURNING 
-                    id
-                  ;
-                  `,
-                  [name, nameTranscription],
-                )
-              ).rows[0].id;
 
-        await client.query(
+        // genres テーブルに登録
+        // 同名のジャンルがすでにある場合は登録しない
+        const genreId = await getOrCreateByName(client, "genres", genre);
+
+        // books テーブルに登録
+        const insertBookResult = await client.query(
           `
           INSERT INTO
-            book_authors (
-              book_id,
-              author_id
+            books (
+              title,
+              title_transcription,
+              edition,
+              publisher_id,
+              publish_date,
+              pages,
+              genre_id,
+              isbn,
+              stock_count
             )
           VALUES (
-            $1, $2
+            $1, $2, $3, $4, $5::date, $6, $7, $8, $9
           )
+          RETURNING
+            id
           ;
           `,
-          [bookId, authorId],
+          [
+            trimmedTitle,
+            normalizedTitleTranscription,
+            normalizedEdition,
+            publisherId,
+            normalizedPublishDate,
+            pages,
+            genreId,
+            normalizeISBN(isbn),
+            stockCount,
+          ],
         );
+        const bookId = insertBookResult.rows[0].id;
+
+        for (const author of normalizedAuthors) {
+          const { name, nameTranscription } = author;
+
+          const existingAuthorResult = await client.query(
+            `
+            SELECT
+              id
+            FROM
+              authors
+            WHERE
+              name = $1
+              AND name_transcription IS NOT DISTINCT FROM $2
+            LIMIT
+              1
+            ;
+            `,
+            [name, nameTranscription],
+          );
+          const authorId =
+            existingAuthorResult.rows.length > 0
+              ? existingAuthorResult.rows[0].id
+              : (
+                  await client.query(
+                    `
+                    INSERT INTO
+                      authors (
+                        name,
+                        name_transcription
+                      )
+                    VALUES (
+                      $1, $2
+                    )
+                    RETURNING
+                      id
+                    ;
+                    `,
+                    [name, nameTranscription],
+                  )
+                ).rows[0].id;
+
+          await client.query(
+            `
+            INSERT INTO
+              book_authors (
+                book_id,
+                author_id
+              )
+            VALUES (
+              $1, $2
+            )
+            ;
+            `,
+            [bookId, authorId],
+          );
+        }
+
+        await client.query("COMMIT");
+
+        return res.status(201).json({
+          success: true,
+          message: "書籍を登録しました。",
+          data: { bookId },
+        });
+      } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
       }
-
-      // クエリの終了
-      await client.query("COMMIT");
-
-      return res.status(201).json({
-        success: true,
-        message: "書籍を登録しました。",
-        data: { bookId },
-      });
     } catch (e) {
       console.log(e);
-      await client.query("ROLLBACK");
       return res.status(500).json({
         success: false,
         message: "登録に失敗しました。管理者に問い合わせしてください。",
@@ -357,7 +365,7 @@ router.get("/v1/retrieve", async (req, res) => {
       LIMIT ${limitClause} OFFSET ${offsetClause}
       ;
     `;
-    const searchResult = await pool.query(searchSql, values);
+    const searchResult = await client.query(searchSql, values);
     const books = camelcaseKeys(searchResult.rows, { deep: true });
 
     // cover_urlを挿入
@@ -419,8 +427,17 @@ router.put(
         stockCount,
         authors,
       } = req.body;
+      const trimmedTitle = String(title ?? "").trim();
+      const normalizedTitleTranscription = toNullIfEmpty(
+        String(titleTranscription ?? "").trim(),
+      );
+      const normalizedEdition = toNullIfEmpty(String(edition ?? "").trim());
+      const normalizedPublishDate = toDateYmdOrNull(
+        String(publishDate ?? "").trim(),
+      );
+      const normalizedAuthors = Array.isArray(authors) ? authors : [];
 
-      if (!title || !isbn) {
+      if (!trimmedTitle || !isbn) {
         return res.status(400).json({
           success: false,
           message: "書籍名, ISBN は必須です。",
@@ -428,128 +445,119 @@ router.put(
         });
       }
 
-      // クエリの開始
-      await client.query("BEGIN");
+      try {
+        await client.query("BEGIN");
 
-      // publishers テーブルに登録
-      // 同名の出版社がすでにある場合は登録しない
-      const publisherId = await getOrCreateByName(
-        client,
-        "publishers",
-        publisherName,
-      );
-
-      // genres テーブルに登録
-      // 同名のジャンルがすでにある場合は登録しない
-      const genreId = await getOrCreateByName(client, "genres", genreName);
-
-      // books テーブルを更新
-      await client.query(
-        `
-        UPDATE books SET
-          title = $1,
-          title_transcription = $2,
-          edition = $3,
-          publisher_id = $4,
-          publish_date = $5::date,
-          pages = $6,
-          genre_id = $7,
-          isbn = $8,
-          stock_count = $9,
-          updated_at = CURRENT_TIMESTAMP
-        WHERE id = $10
-        `,
-        [
-          title.trim(),
-          toNullIfEmpty(titleTranscription.trim()),
-          toNullIfEmpty(edition.trim()),
-          publisherId,
-          toDateYmdOrNull(publishDate),
-          pages,
-          genreId,
-          normalizeISBN(isbn),
-          stockCount,
-          bookId,
-        ],
-      );
-      // 著者の再紐付け（全削除 → 挿し直し）
-      await client.query(
-        `
-        DELETE
-        FROM
-          book_authors
-        WHERE
-          book_id = $1
-        ;
-        `,
-        [bookId],
-      );
-
-      // authors テーブル & 中間テーブル book_authors 登録
-      for (const author of authors) {
-        const { name, nameTranscription } = author;
-
-        // 同名の著者がすでにいるか確認（完全一致）
-        const existingAuthorResult = await client.query(
-          `
-          SELECT
-            id
-          FROM
-            authors
-          WHERE
-            name = $1
-            AND name_transcription IS NOT DISTINCT
-          FROM
-            $2
-          LIMIT 1
-          ;
-          `,
-          [name, nameTranscription],
+        const publisherId = await getOrCreateByName(
+          client,
+          "publishers",
+          publisherName,
         );
-        const authorId = existingAuthorResult.rowCount
-          ? existingAuthorResult.rows[0].id
-          : (
-              await client.query(
-                `
-                INSERT INTO
-                  authors (
-                    name, name_transcription
-                  )
-                VALUES (
-                  $1, $2
-                ) RETURNING id
-                ;
-                `,
-                [name, nameTranscription],
-              )
-            ).rows[0].id;
+        const genreId = await getOrCreateByName(client, "genres", genreName);
 
         await client.query(
           `
-          INSERT INTO
-            book_authors (
-              book_id, author_id
-            ) 
-          VALUES (
-            $1, $2
-          )
+          UPDATE books SET
+            title = $1,
+            title_transcription = $2,
+            edition = $3,
+            publisher_id = $4,
+            publish_date = $5::date,
+            pages = $6,
+            genre_id = $7,
+            isbn = $8,
+            stock_count = $9,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE id = $10
+          `,
+          [
+            trimmedTitle,
+            normalizedTitleTranscription,
+            normalizedEdition,
+            publisherId,
+            normalizedPublishDate,
+            pages,
+            genreId,
+            normalizeISBN(isbn),
+            stockCount,
+            bookId,
+          ],
+        );
+        await client.query(
+          `
+          DELETE
+          FROM
+            book_authors
+          WHERE
+            book_id = $1
           ;
           `,
-          [bookId, authorId],
+          [bookId],
         );
+
+        for (const author of normalizedAuthors) {
+          const { name, nameTranscription } = author;
+
+          const existingAuthorResult = await client.query(
+            `
+            SELECT
+              id
+            FROM
+              authors
+            WHERE
+              name = $1
+              AND name_transcription IS NOT DISTINCT FROM $2
+            LIMIT 1
+            ;
+            `,
+            [name, nameTranscription],
+          );
+          const authorId = existingAuthorResult.rowCount
+            ? existingAuthorResult.rows[0].id
+            : (
+                await client.query(
+                  `
+                  INSERT INTO
+                    authors (
+                      name, name_transcription
+                    )
+                  VALUES (
+                    $1, $2
+                  ) RETURNING id
+                  ;
+                  `,
+                  [name, nameTranscription],
+                )
+              ).rows[0].id;
+
+          await client.query(
+            `
+            INSERT INTO
+              book_authors (
+                book_id, author_id
+              )
+            VALUES (
+              $1, $2
+            )
+            ;
+            `,
+            [bookId, authorId],
+          );
+        }
+
+        await client.query("COMMIT");
+
+        return res.status(200).json({
+          success: true,
+          message: "書籍を更新しました。",
+          data: { bookId },
+        });
+      } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
       }
-
-      // クエリの終了
-      await client.query("COMMIT");
-
-      return res.status(200).json({
-        success: true,
-        message: "書籍を更新しました。",
-        data: { bookId },
-      });
     } catch (e) {
       console.log(e);
-      await client.query("ROLLBACK");
       return res.status(500).json({
         success: false,
         message: "更新に失敗しました。管理者に問い合わせしてください。",

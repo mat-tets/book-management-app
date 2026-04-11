@@ -25,79 +25,96 @@ router.post("/v1/register", async (req, res) => {
       });
     }
 
+    const trimmedName = String(name).trim();
     const normalizedEmail = normalizeEmail(email);
+    const trimmedRole = String(role).trim();
 
-    if (password.length < 8) {
+    if (!trimmedName || !trimmedRole) {
       return res.status(400).json({
-        message: "パスワード は8文字以上で入力してください。",
-      });
-    }
-
-    await client.query("BEGIN");
-
-    const existingUserResult = await client.query(
-      `
-      SELECT
-        id,
-        email,
-        is_verified
-      FROM
-        users
-      WHERE
-        email = $1
-      LIMIT 1
-      ;
-      `,
-      [normalizedEmail],
-    );
-
-    if (existingUserResult.rows.length > 0) {
-      const existingUser = existingUserResult.rows[0];
-
-      if (existingUser.is_verified) {
-        await client.query("ROLLBACK");
-        return res.status(409).json({
-          success: false,
-          message: "このメールアドレスは既に登録済みです。",
-          data: null,
-        });
-      }
-
-      await client.query("ROLLBACK");
-      return res.status(409).json({
         success: false,
-        message:
-          "このメールアドレスは仮登録済みです。認証メールを再送してください。",
+        message: "名前, メールアドレス, パスワード, ロール は必須です。",
         data: null,
       });
     }
 
-    const passwordHash = await hashPassword(password);
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "パスワード は8文字以上で入力してください。",
+        data: null,
+      });
+    }
 
-    const result = await pool.query(
-      `
-      INSERT INTO
-        users (
-          name,
+    try {
+      await client.query("BEGIN");
+
+      const existingUserResult = await client.query(
+        `
+        SELECT
+          id,
           email,
-          password_hash,
-          role,
           is_verified
-        )
+        FROM
+          users
+        WHERE
+          email = $1
+        LIMIT 1
+        ;
+        `,
+        [normalizedEmail],
+      );
+
+      if (existingUserResult.rows.length > 0) {
+        const existingUser = existingUserResult.rows[0];
+
+        await client.query("ROLLBACK");
+        return res.status(409).json({
+          success: false,
+          message: existingUser.is_verified
+            ? "このメールアドレスは既に登録済みです。"
+            : "このメールアドレスは仮登録済みです。認証メールを再送してください。",
+          data: null,
+        });
+      }
+
+      const passwordHash = await hashPassword(password);
+
+      const result = await client.query(
+        `
+        INSERT INTO
+          users (
+            name,
+            email,
+            password_hash,
+            role,
+            is_verified
+          )
         VALUES (
           $1, $2, $3, $4, true
         )
-      `,
-      [name.trim(), normalizedEmail, passwordHash, role],
-    );
+        RETURNING
+          id,
+          name,
+          email,
+          role
+        ;
+        `,
+        [trimmedName, normalizedEmail, passwordHash, trimmedRole],
+      );
 
-    return res.status(201).json({
-      success: true,
-      message: "ユーザを登録しました。",
-      data: {
-        user: result.rows[0],
-      },
-    });
+      await client.query("COMMIT");
+
+      return res.status(201).json({
+        success: true,
+        message: "ユーザを登録しました。",
+        data: {
+          user: result.rows[0],
+        },
+      });
+    } catch (e) {
+      await client.query("ROLLBACK");
+      throw e;
+    }
   } catch (e) {
     console.log(e);
     return res.status(500).json({
@@ -105,6 +122,8 @@ router.post("/v1/register", async (req, res) => {
       message: "ユーザを登録できませんでした。管理者に問い合わせしてください。",
       data: null,
     });
+  } finally {
+    client.release();
   }
 });
 
@@ -287,7 +306,7 @@ router.put("/v1/update/me", authenticateToken, async (req, res) => {
         WHERE
           email = $1
         `,
-        [trimmedEmail],
+        [normalizeEmail(trimmedEmail)],
       );
       if (exists.rows[0] && exists.rows[0].id !== req.user.id) {
         return res.status(400).json({
@@ -297,7 +316,7 @@ router.put("/v1/update/me", authenticateToken, async (req, res) => {
         });
       }
       updates.push(`email = $${values.length + 1}`);
-      values.push(trimmedEmail);
+      values.push(normalizeEmail(trimmedEmail));
     }
 
     if (updates.length === 0) {
@@ -310,26 +329,30 @@ router.put("/v1/update/me", authenticateToken, async (req, res) => {
 
     values.push(req.user.id);
 
-    await client.query("BEGIN");
-    const result = await client.query(
-      `
-      UPDATE users SET
-        ${updates.join(", ")},
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $${values.length}
-      RETURNING id, name, email, role
-      `,
-      values,
-    );
-    await client.query("COMMIT");
+    try {
+      await client.query("BEGIN");
+      const result = await client.query(
+        `
+        UPDATE users SET
+          ${updates.join(", ")},
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $${values.length}
+        RETURNING id, name, email, role
+        `,
+        values,
+      );
+      await client.query("COMMIT");
 
-    return res.status(200).json({
-      success: true,
-      message: "ユーザ情報を更新しました。",
-      data: { user: result.rows[0] },
-    });
+      return res.status(200).json({
+        success: true,
+        message: "ユーザ情報を更新しました。",
+        data: { user: result.rows[0] },
+      });
+    } catch (e) {
+      await client.query("ROLLBACK");
+      throw e;
+    }
   } catch (e) {
-    await client.query("ROLLBACK");
     console.log(e);
     return res.status(500).json({
       success: false,
@@ -387,27 +410,39 @@ router.put("/v1/update/password", authenticateToken, async (req, res) => {
       });
     }
 
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "パスワード は8文字以上で入力してください。",
+        data: null,
+      });
+    }
+
     const passwordHash = await hashPassword(newPassword);
 
-    await client.query("BEGIN");
-    await client.query(
-      `
-      UPDATE users SET
-        password_hash = $1,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $2
-      `,
-      [passwordHash, req.user.id],
-    );
-    await client.query("COMMIT");
+    try {
+      await client.query("BEGIN");
+      await client.query(
+        `
+        UPDATE users SET
+          password_hash = $1,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2
+        `,
+        [passwordHash, req.user.id],
+      );
+      await client.query("COMMIT");
 
-    return res.status(200).json({
-      success: true,
-      message: "パスワードを更新しました。",
-      data: null,
-    });
+      return res.status(200).json({
+        success: true,
+        message: "パスワードを更新しました。",
+        data: null,
+      });
+    } catch (e) {
+      await client.query("ROLLBACK");
+      throw e;
+    }
   } catch (e) {
-    await client.query("ROLLBACK");
     console.log(e);
     return res.status(500).json({
       success: false,
@@ -440,29 +475,33 @@ router.put(
           data: null,
         });
       }
-      await client.query("BEGIN");
+      try {
+        await client.query("BEGIN");
 
-      await client.query(
-        `
-        UPDATE
-          users
-        SET
-          role = $1,
-          updated_at = CURRENT_TIMESTAMP
-        WHERE
-          id = $2
-        `,
-        [role, userId],
-      );
+        await client.query(
+          `
+          UPDATE
+            users
+          SET
+            role = $1,
+            updated_at = CURRENT_TIMESTAMP
+          WHERE
+            id = $2
+          `,
+          [role, userId],
+        );
 
-      await client.query("COMMIT");
-      return res.status(200).json({
-        success: true,
-        message: "ユーザを更新しました。",
-        data: { userId },
-      });
+        await client.query("COMMIT");
+        return res.status(200).json({
+          success: true,
+          message: "ユーザを更新しました。",
+          data: { userId },
+        });
+      } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
+      }
     } catch (e) {
-      await client.query("ROLLBACK");
       console.log(e);
       return res.status(500).json({
         success: false,
@@ -495,27 +534,31 @@ router.delete(
         });
       }
 
-      await client.query("BEGIN");
+      try {
+        await client.query("BEGIN");
 
-      await client.query(
-        `
-        DELETE
-        FROM
-          users
-        WHERE
-          id = $1
-        `,
-        [userId],
-      );
+        await client.query(
+          `
+          DELETE
+          FROM
+            users
+          WHERE
+            id = $1
+          `,
+          [userId],
+        );
 
-      await client.query("COMMIT");
-      return res.status(200).json({
-        success: true,
-        message: "ユーザを削除しました。",
-        data: { userId },
-      });
+        await client.query("COMMIT");
+        return res.status(200).json({
+          success: true,
+          message: "ユーザを削除しました。",
+          data: { userId },
+        });
+      } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
+      }
     } catch (e) {
-      await client.query("ROLLBACK");
       console.log(e);
       return res.status(500).json({
         success: false,

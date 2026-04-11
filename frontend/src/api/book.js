@@ -15,8 +15,8 @@ export const registerBook = async (registerData, token) => {
 
 // 書籍の取得
 export const retrieveBooks = async (params) => {
-  const query = new URLSearchParams(params).toString() ?? "";
-  const path = `/book/v1/retrieve?${query}`;
+  const query = new URLSearchParams(params).toString();
+  const path = `/book/v1/retrieve${query ? `?${query}` : ""}`;
   return publicApiFetch(path, { method: "GET" });
 };
 

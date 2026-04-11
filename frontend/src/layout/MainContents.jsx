@@ -4,10 +4,7 @@ import ApplicationModal from "../components/application/ApplicationModal";
 import ApprovalModal from "../components/approval/ApprovalModal";
 import LoanBookModal from "../components/book/LoanBookModal";
 import RegisterBookModal from "../components/book/RegisterBookModal";
-import {
-  default as EditBookModal,
-  default as UpdateBookModal,
-} from "../components/book/UpdateBookModal";
+import UpdateBookModal from "../components/book/UpdateBookModal";
 import EditUserModal from "../components/user/EditUserModal";
 import UserModal from "../components/user/UserModal";
 import ApplicationPage from "../pages/ApplicationPage";
@@ -34,6 +31,167 @@ import VerificationPage from "../pages/VerifiyEmailPage";
 import styles from "./MainContents.module.css";
 import ProtectedRoute from "./ProtectedRoute";
 
+const renderProtectedElement = (element, allowedRoles) => {
+  if (!allowedRoles) {
+    return element;
+  }
+
+  return (
+    <ProtectedRoute allowedRoles={allowedRoles}>{element}</ProtectedRoute>
+  );
+};
+
+const renderRoute = (route) => {
+  const key = route.index ? "index" : route.path;
+
+  return (
+    <Route
+      key={key}
+      index={route.index}
+      path={route.path}
+      element={renderProtectedElement(route.element, route.allowedRoles)}
+    />
+  );
+};
+
+const appRoutes = [
+  { index: true, element: <HomePage /> },
+  { path: "/bookshelf", element: <BookshelfPage /> },
+  { path: "/bookshelf/:id", element: <LoanBookModal /> },
+  {
+    path: "/bookshelf/loan/:id",
+    element: <LoanBookPage />,
+    allowedRoles: ["admin", "approver", "general"],
+  },
+  {
+    path: "/application",
+    element: <ApplicationPage />,
+    allowedRoles: ["admin", "approver", "general"],
+  },
+  {
+    path: "/application/:id",
+    element: <ApplicationModal />,
+    allowedRoles: ["admin", "approver", "general"],
+  },
+  {
+    path: "/approval",
+    element: <ApprovalPage />,
+    allowedRoles: ["admin", "approver"],
+  },
+  {
+    path: "/approval/:id",
+    element: <ApprovalModal />,
+    allowedRoles: ["admin", "approver"],
+  },
+  {
+    path: "/manage/user",
+    element: <ManageUserPage />,
+    allowedRoles: ["admin"],
+  },
+  {
+    path: "/manage/user/:id",
+    element: <UserModal />,
+    allowedRoles: ["admin"],
+  },
+  {
+    path: "/manage/user/register",
+    element: <RegisterUserPage />,
+    allowedRoles: ["admin"],
+  },
+  {
+    path: "/manage/user/edit/:id",
+    element: <UpdateUserPage />,
+    allowedRoles: ["admin"],
+  },
+  {
+    path: "/manage/book",
+    element: <ManageBookPage />,
+    allowedRoles: ["admin"],
+  },
+  {
+    path: "/manage/book/:id",
+    element: <UpdateBookModal />,
+    allowedRoles: ["admin"],
+  },
+  {
+    path: "/manage/book/edit/:id",
+    element: <UpdateBookPage />,
+    allowedRoles: ["admin"],
+  },
+  {
+    path: "/manage/opensearch",
+    element: <OpenSearchPage />,
+    allowedRoles: ["admin"],
+  },
+  {
+    path: "/manage/opensearch/:isbn",
+    element: <RegisterBookModal />,
+    allowedRoles: ["admin"],
+  },
+  {
+    path: "/manage/book/register",
+    element: <RegisterBookPage />,
+    allowedRoles: ["admin"],
+  },
+  {
+    path: "/manage/book/register/:isbn",
+    element: <RegisterBookPage />,
+    allowedRoles: ["admin"],
+  },
+  {
+    path: "/my-page",
+    element: <Mypage />,
+    allowedRoles: ["admin", "approver", "general"],
+  },
+  {
+    path: "/my-page/edit/:type",
+    element: <EditUserModal />,
+    allowedRoles: ["admin", "approver", "general"],
+  },
+  { path: "/unauthorized", element: <UnauthorizedPage /> },
+  { path: "/signin", element: <SignInPage /> },
+  { path: "/signup", element: <SignUpPage /> },
+  { path: "/forgot-password", element: <ForgotPasswordPage /> },
+  { path: "/reset-password", element: <ResetPasswordPage /> },
+  { path: "/verify-email", element: <VerificationPage /> },
+  { path: "/resend-verification", element: <ResendVerificationPage /> },
+  { path: "*", element: <NotFoundPage /> },
+];
+
+const modalRoutes = [
+  { path: "/bookshelf/:id", element: <LoanBookModal /> },
+  {
+    path: "/application/:id",
+    element: <ApplicationModal />,
+    allowedRoles: ["admin", "approver", "general"],
+  },
+  {
+    path: "/approval/:id",
+    element: <ApprovalModal />,
+    allowedRoles: ["admin", "approver"],
+  },
+  {
+    path: "/manage/user/:id",
+    element: <UserModal />,
+    allowedRoles: ["admin"],
+  },
+  {
+    path: "/manage/book/:id",
+    element: <UpdateBookModal />,
+    allowedRoles: ["admin"],
+  },
+  {
+    path: "/manage/opensearch/:isbn",
+    element: <RegisterBookModal />,
+    allowedRoles: ["admin"],
+  },
+  {
+    path: "/my-page/edit/:type",
+    element: <EditUserModal />,
+    allowedRoles: ["admin", "approver", "general"],
+  },
+];
+
 const MainContents = () => {
   const location = useLocation();
   const backgroundLocation = location.state?.backgroundLocation ?? null;
@@ -41,226 +199,9 @@ const MainContents = () => {
   return (
     <main className={styles.root}>
       <Routes location={backgroundLocation || location}>
-        <Route index element={<HomePage />} />
-        <Route path="/bookshelf" element={<BookshelfPage />} />
-        <Route path="/bookshelf/:id" element={<LoanBookModal />} />
-        <Route
-          path="/bookshelf/loan/:id"
-          element={
-            <ProtectedRoute allowedRoles={["admin", "approver", "general"]}>
-              <LoanBookPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/application"
-          element={
-            <ProtectedRoute allowedRoles={["admin", "approver", "general"]}>
-              <ApplicationPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/application/:id"
-          element={
-            <ProtectedRoute allowedRoles={["admin", "approver", "general"]}>
-              <ApplicationModal />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/approval"
-          element={
-            <ProtectedRoute allowedRoles={["admin", "approver"]}>
-              <ApprovalPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/approval/:id"
-          element={
-            <ProtectedRoute allowedRoles={["admin", "approver"]}>
-              <ApprovalModal />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/manage/user"
-          element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <ManageUserPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/manage/user/:id"
-          element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <UserModal />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/manage/user/register"
-          element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <RegisterUserPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/manage/user/edit/:id"
-          element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <UpdateUserPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/manage/book"
-          element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <ManageBookPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/manage/book/:id"
-          element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <UpdateBookModal />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/manage/book/edit/:id"
-          element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <UpdateBookPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/manage/opensearch"
-          element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <OpenSearchPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/manage/opensearch/:isbn"
-          element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <RegisterBookModal />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/manage/book/register"
-          element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <RegisterBookPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/manage/book/register/:isbn"
-          element={
-            <ProtectedRoute allowedRoles={["admin"]}>
-              <RegisterBookPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/my-page"
-          element={
-            <ProtectedRoute allowedRoles={["admin", "approver", "general"]}>
-              <Mypage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/my-page/edit/:type"
-          element={
-            <ProtectedRoute allowedRoles={["admin", "approver", "general"]}>
-              <EditUserModal />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="/unauthorized" element={<UnauthorizedPage />} />
-        <Route path="/signin" element={<SignInPage />} />
-        <Route path="/signup" element={<SignUpPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/verify-email" element={<VerificationPage />} />
-        <Route
-          path="/resend-verification"
-          element={<ResendVerificationPage />}
-        />
-        <Route path="*" element={<NotFoundPage />} />
+        {appRoutes.map(renderRoute)}
       </Routes>
-      {backgroundLocation && (
-        <Routes>
-          <Route path="/bookshelf/:id" element={<LoanBookModal />} />
-          <Route
-            path="/application/:id"
-            element={
-              <ProtectedRoute allowedRoles={["admin", "approver", "general"]}>
-                <ApplicationModal />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/approval/:id"
-            element={
-              <ProtectedRoute allowedRoles={["admin", "approver"]}>
-                <ApprovalModal />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/manage/user/:id"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <UserModal />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/manage/book/:id"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <EditBookModal />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/manage/opensearch/:isbn"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <RegisterBookModal />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/manage/user/:id"
-            element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <UserModal />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/my-page/edit/:type"
-            element={
-              <ProtectedRoute allowedRoles={["admin", "approver", "general"]}>
-                <EditUserModal />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
-      )}
+      {backgroundLocation && <Routes>{modalRoutes.map(renderRoute)}</Routes>}
     </main>
   );
 };

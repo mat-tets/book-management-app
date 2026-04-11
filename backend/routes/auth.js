@@ -36,6 +36,15 @@ router.post("/v1/signup", async (req, res) => {
     }
 
     const normalizedEmail = normalizeEmail(email);
+    const trimmedName = String(name).trim();
+
+    if (!trimmedName) {
+      return res.status(400).json({
+        success: false,
+        message: "名前, メールアドレス, パスワードは必須です。",
+        data: null,
+      });
+    }
 
     if (password.length < 8) {
       return res.status(400).json({
@@ -52,9 +61,6 @@ router.post("/v1/signup", async (req, res) => {
         data: null,
       });
     }
-
-    // クエリの開始
-    await client.query("BEGIN");
 
     const existingUserResult = await client.query(
       `
@@ -74,93 +80,91 @@ router.post("/v1/signup", async (req, res) => {
 
     if (existingUserResult.rows.length > 0) {
       const existingUser = existingUserResult.rows[0];
-
-      if (existingUser.is_verified) {
-        await client.query("ROLLBACK");
-        return res.status(409).json({
-          success: false,
-          message: "このメールアドレスは既に登録済みです。",
-          data: null,
-        });
-      }
-
-      await client.query("ROLLBACK");
       return res.status(409).json({
         success: false,
-        message:
-          "このメールアドレスは仮登録済みです。認証メールを確認してください。",
+        message: existingUser.is_verified
+          ? "このメールアドレスは既に登録済みです。"
+          : "このメールアドレスは仮登録済みです。認証メールを確認してください。",
         data: null,
       });
     }
 
-    const passwordHash = await hashPassword(password);
+    const signUpResult = await (async () => {
+      try {
+        await client.query("BEGIN");
 
-    const insertedUserResult = await client.query(
-      `
-      INSERT INTO users (
-        name,
-        email,
-        password_hash,
-        role,
-        is_verified
-      )
-      VALUES (
-        $1,
-        $2,
-        $3,
-        'general',
-        false
-      )
-      RETURNING
-        id,
-        name,
-        email
-      ;
-      `,
-      [name.trim(), normalizedEmail, passwordHash],
-    );
+        const passwordHash = await hashPassword(password);
 
-    const user = insertedUserResult.rows[0];
+        const insertedUserResult = await client.query(
+          `
+          INSERT INTO users (
+            name,
+            email,
+            password_hash,
+            role,
+            is_verified
+          )
+          VALUES (
+            $1,
+            $2,
+            $3,
+            'general',
+            false
+          )
+          RETURNING
+            id,
+            name,
+            email
+          ;
+          `,
+          [trimmedName, normalizedEmail, passwordHash],
+        );
 
-    const token = generateVerificationToken();
-    const tokenHash = hashToken(token);
+        const user = insertedUserResult.rows[0];
+        const token = generateVerificationToken();
+        const tokenHash = hashToken(token);
 
-    const expiresAtResult = await client.query(
-      `
-      SELECT
-        CURRENT_TIMESTAMP + ($1 || ' hours')::interval AS expires_at
-      ;
-      `,
-      [VERIFICATION_EXPIRES_HOURS],
-    );
+        const expiresAtResult = await client.query(
+          `
+          SELECT
+            CURRENT_TIMESTAMP + ($1 || ' hours')::interval AS expires_at
+          ;
+          `,
+          [VERIFICATION_EXPIRES_HOURS],
+        );
 
-    const expiresAt = expiresAtResult.rows[0].expires_at;
+        const expiresAt = expiresAtResult.rows[0].expires_at;
 
-    await client.query(
-      `
-      INSERT INTO email_verifications (
-        user_id,
-        token_hash,
-        expires_at
-      )
-      VALUES (
-        $1,
-        $2,
-        $3
-      )
-      ;
-      `,
-      [user.id, tokenHash, expiresAt],
-    );
+        await client.query(
+          `
+          INSERT INTO email_verifications (
+            user_id,
+            token_hash,
+            expires_at
+          )
+          VALUES (
+            $1,
+            $2,
+            $3
+          )
+          ;
+          `,
+          [user.id, tokenHash, expiresAt],
+        );
 
-    // クエリの終了
-    await client.query("COMMIT");
+        await client.query("COMMIT");
+        return { user, token };
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      }
+    })();
 
     try {
       await sendVerificationEmail({
-        to: user.email,
-        name: user.name,
-        token,
+        to: signUpResult.user.email,
+        name: signUpResult.user.name,
+        token: signUpResult.token,
       });
     } catch (mailError) {
       console.log("failed to send verification email:", mailError);
@@ -178,7 +182,6 @@ router.post("/v1/signup", async (req, res) => {
       data: null,
     });
   } catch (error) {
-    await client.query("ROLLBACK");
     return res.status(500).json({
       success: false,
       message: "登録に失敗しました。管理者に問い合わせしてください。",
@@ -207,40 +210,87 @@ router.post("/v1/verify-email", async (req, res) => {
 
     const tokenHash = hashToken(String(token));
 
-    // クエリの開始
-    await client.query("BEGIN");
+    try {
+      await client.query("BEGIN");
 
-    const verificationResult = await client.query(
-      `
-      SELECT
-        ev.id,
-        ev.user_id,
-        ev.expires_at,
-        u.is_verified
-      FROM
-        email_verifications ev
-      INNER JOIN users u
-        ON u.id = ev.user_id
-      WHERE
-        ev.token_hash = $1
-      LIMIT 1
-      ;
-      `,
-      [tokenHash],
-    );
+      const verificationResult = await client.query(
+        `
+        SELECT
+          ev.id,
+          ev.user_id,
+          ev.expires_at,
+          u.is_verified
+        FROM
+          email_verifications ev
+        INNER JOIN users u
+          ON u.id = ev.user_id
+        WHERE
+          ev.token_hash = $1
+        LIMIT 1
+        ;
+        `,
+        [tokenHash],
+      );
 
-    if (verificationResult.rows.length === 0) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({
-        success: false,
-        message: "無効な認証リンクです。",
-        data: null,
-      });
-    }
+      if (verificationResult.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({
+          success: false,
+          message: "無効な認証リンクです。",
+          data: null,
+        });
+      }
 
-    const verification = verificationResult.rows[0];
+      const verification = verificationResult.rows[0];
 
-    if (verification.is_verified) {
+      if (verification.is_verified) {
+        await client.query(
+          `
+          DELETE FROM email_verifications
+          WHERE user_id = $1
+          ;
+          `,
+          [verification.user_id],
+        );
+        await client.query("COMMIT");
+
+        return res.status(409).json({
+          success: false,
+          message: "すでに認証済みです。",
+          data: null,
+        });
+      }
+
+      const nowResult = await client.query(
+        `
+        SELECT CURRENT_TIMESTAMP AS now
+        ;
+        `,
+      );
+      const now = nowResult.rows[0].now;
+
+      if (new Date(now) > new Date(verification.expires_at)) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({
+          success: false,
+          message: "認証リンクの有効期限が切れています。",
+          data: null,
+        });
+      }
+
+      await client.query(
+        `
+        UPDATE users
+        SET
+          is_verified = true,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE
+          id = $1
+        ;
+        `,
+        [verification.user_id],
+      );
+
       await client.query(
         `
         DELETE FROM email_verifications
@@ -249,63 +299,19 @@ router.post("/v1/verify-email", async (req, res) => {
         `,
         [verification.user_id],
       );
+
       await client.query("COMMIT");
 
-      return res.status(409).json({
-        success: false,
-        message: "すでに認証済みです。",
+      return res.status(200).json({
+        success: true,
+        message: "メール認証が完了しました。アプリケーションをご利用ください。",
         data: null,
       });
-    }
-
-    const nowResult = await client.query(
-      `
-      SELECT CURRENT_TIMESTAMP AS now
-      ;
-      `,
-    );
-    const now = nowResult.rows[0].now;
-
-    if (new Date(now) > new Date(verification.expires_at)) {
+    } catch (error) {
       await client.query("ROLLBACK");
-      return res.status(400).json({
-        success: false,
-        message: "認証リンクの有効期限が切れています。",
-        data: null,
-      });
+      throw error;
     }
-
-    await client.query(
-      `
-      UPDATE users
-      SET
-        is_verified = true,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE
-        id = $1
-      ;
-      `,
-      [verification.user_id],
-    );
-
-    await client.query(
-      `
-      DELETE FROM email_verifications
-      WHERE user_id = $1
-      ;
-      `,
-      [verification.user_id],
-    );
-
-    await client.query("COMMIT");
-
-    return res.status(200).json({
-      success: true,
-      message: "メール認証が完了しました。アプリケーションをご利用ください。",
-      data: null,
-    });
   } catch (error) {
-    await client.query("ROLLBACK");
     return res.status(500).json({
       success: false,
       message: "認証に失敗しました。管理者に問い合わせしてください。",
@@ -334,8 +340,6 @@ router.post("/v1/resend-verification", async (req, res) => {
 
     const normalizedEmail = normalizeEmail(email);
 
-    await client.query("BEGIN");
-
     const userResult = await client.query(
       `
       SELECT
@@ -354,7 +358,6 @@ router.post("/v1/resend-verification", async (req, res) => {
     );
 
     if (userResult.rows.length === 0) {
-      await client.query("ROLLBACK");
       return res.status(404).json({
         success: false,
         message: "該当ユーザーが見つかりません。",
@@ -365,7 +368,6 @@ router.post("/v1/resend-verification", async (req, res) => {
     const user = userResult.rows[0];
 
     if (user.is_verified) {
-      await client.query("ROLLBACK");
       return res.status(400).json({
         success: false,
         message: "このユーザーはすでに認証済みです。",
@@ -373,56 +375,66 @@ router.post("/v1/resend-verification", async (req, res) => {
       });
     }
 
-    await client.query(
-      `
-      DELETE
-      FROM
-        email_verifications
-      WHERE
-        user_id = $1
-      ;
-      `,
-      [user.id],
-    );
+    const resendResult = await (async () => {
+      try {
+        await client.query("BEGIN");
 
-    const token = generateVerificationToken();
-    const tokenHash = hashToken(token);
+        await client.query(
+          `
+          DELETE
+          FROM
+            email_verifications
+          WHERE
+            user_id = $1
+          ;
+          `,
+          [user.id],
+        );
 
-    const expiresAtResult = await client.query(
-      `
-      SELECT
-        CURRENT_TIMESTAMP + ($1 || ' hours')::interval AS expires_at
-      ;
-      `,
-      [VERIFICATION_EXPIRES_HOURS],
-    );
+        const token = generateVerificationToken();
+        const tokenHash = hashToken(token);
 
-    const expiresAt = expiresAtResult.rows[0].expires_at;
+        const expiresAtResult = await client.query(
+          `
+          SELECT
+            CURRENT_TIMESTAMP + ($1 || ' hours')::interval AS expires_at
+          ;
+          `,
+          [VERIFICATION_EXPIRES_HOURS],
+        );
 
-    await client.query(
-      `
-      INSERT INTO email_verifications (
-        user_id,
-        token_hash,
-        expires_at
-      )
-      VALUES (
-        $1,
-        $2,
-        $3
-      )
-      ;
-      `,
-      [user.id, tokenHash, expiresAt],
-    );
+        const expiresAt = expiresAtResult.rows[0].expires_at;
 
-    await client.query("COMMIT");
+        await client.query(
+          `
+          INSERT INTO email_verifications (
+            user_id,
+            token_hash,
+            expires_at
+          )
+          VALUES (
+            $1,
+            $2,
+            $3
+          )
+          ;
+          `,
+          [user.id, tokenHash, expiresAt],
+        );
+
+        await client.query("COMMIT");
+        return { user, token };
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      }
+    })();
 
     try {
       await sendVerificationEmail({
-        to: user.email,
-        name: user.name,
-        token,
+        to: resendResult.user.email,
+        name: resendResult.user.name,
+        token: resendResult.token,
       });
     } catch (mailError) {
       console.log("failed to resend verification email:", mailError);
@@ -439,7 +451,6 @@ router.post("/v1/resend-verification", async (req, res) => {
       data: null,
     });
   } catch (error) {
-    await client.query("ROLLBACK");
     return res.status(500).json({
       success: false,
       message: "認証メールの再送に失敗しました 管理者に問い合わせしてください",
@@ -468,8 +479,6 @@ router.post("/v1/forgot-password", async (req, res) => {
 
     const normalizedEmail = normalizeEmail(email);
 
-    await client.query("BEGIN");
-
     const userResult = await client.query(
       `
       SELECT
@@ -488,9 +497,7 @@ router.post("/v1/forgot-password", async (req, res) => {
       [normalizedEmail],
     );
 
-    // ユーザが存在しない場合
     if (userResult.rows.length === 0) {
-      await client.query("ROLLBACK");
       return res.status(200).json({
         success: true,
         message:
@@ -501,9 +508,7 @@ router.post("/v1/forgot-password", async (req, res) => {
 
     const user = userResult.rows[0];
 
-    // ユーザが有効でない場合
     if (!user.is_verified || user.role === "lock") {
-      await client.query("ROLLBACK");
       return res.status(200).json({
         success: true,
         message:
@@ -512,56 +517,66 @@ router.post("/v1/forgot-password", async (req, res) => {
       });
     }
 
-    await client.query(
-      `
-      DELETE
-      FROM
-        password_resets
-      WHERE
-        user_id = $1
-      ;
-      `,
-      [user.id],
-    );
+    const forgotPasswordResult = await (async () => {
+      try {
+        await client.query("BEGIN");
 
-    const token = generateVerificationToken();
-    const tokenHash = hashToken(token);
+        await client.query(
+          `
+          DELETE
+          FROM
+            password_resets
+          WHERE
+            user_id = $1
+          ;
+          `,
+          [user.id],
+        );
 
-    const expiresAtResult = await client.query(
-      `
-      SELECT
-        CURRENT_TIMESTAMP + ($1 || ' hours')::interval AS expires_at
-      ;
-      `,
-      [PASSWORD_RESET_EXPIRES_HOURS],
-    );
+        const token = generateVerificationToken();
+        const tokenHash = hashToken(token);
 
-    const expiresAt = expiresAtResult.rows[0].expires_at;
+        const expiresAtResult = await client.query(
+          `
+          SELECT
+            CURRENT_TIMESTAMP + ($1 || ' hours')::interval AS expires_at
+          ;
+          `,
+          [PASSWORD_RESET_EXPIRES_HOURS],
+        );
 
-    await client.query(
-      `
-      INSERT INTO password_resets (
-        user_id,
-        token_hash,
-        expires_at
-      )
-      VALUES (
-        $1,
-        $2,
-        $3
-      )
-      ;
-      `,
-      [user.id, tokenHash, expiresAt],
-    );
+        const expiresAt = expiresAtResult.rows[0].expires_at;
 
-    await client.query("COMMIT");
+        await client.query(
+          `
+          INSERT INTO password_resets (
+            user_id,
+            token_hash,
+            expires_at
+          )
+          VALUES (
+            $1,
+            $2,
+            $3
+          )
+          ;
+          `,
+          [user.id, tokenHash, expiresAt],
+        );
+
+        await client.query("COMMIT");
+        return { user, token };
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      }
+    })();
 
     try {
       await sendPasswordResetEmail({
-        to: user.email,
-        name: user.name,
-        token,
+        to: forgotPasswordResult.user.email,
+        name: forgotPasswordResult.user.name,
+        token: forgotPasswordResult.token,
       });
     } catch (mailError) {
       console.log("failed to send password reset email:", mailError);
@@ -574,7 +589,6 @@ router.post("/v1/forgot-password", async (req, res) => {
       data: null,
     });
   } catch (error) {
-    await client.query("ROLLBACK");
     return res.status(500).json({
       success: false,
       message:
@@ -616,56 +630,90 @@ router.post("/v1/reset-password", async (req, res) => {
 
     const tokenHash = hashToken(String(token));
 
-    await client.query("BEGIN");
+    try {
+      await client.query("BEGIN");
 
-    const resetResult = await client.query(
-      `
-      SELECT
-        pr.id,
-        pr.user_id,
-        pr.expires_at,
-        u.role
-      FROM
-        password_resets pr
-      INNER JOIN users u
-        ON u.id = pr.user_id
-      WHERE
-        pr.token_hash = $1
-      LIMIT 1
-      ;
-      `,
-      [tokenHash],
-    );
+      const resetResult = await client.query(
+        `
+        SELECT
+          pr.id,
+          pr.user_id,
+          pr.expires_at,
+          u.role
+        FROM
+          password_resets pr
+        INNER JOIN users u
+          ON u.id = pr.user_id
+        WHERE
+          pr.token_hash = $1
+        LIMIT 1
+        ;
+        `,
+        [tokenHash],
+      );
 
-    if (resetResult.rows.length === 0) {
-      await client.query("ROLLBACK");
-      return res.status(400).json({
-        success: false,
-        message: "無効な再設定リンクです。",
-        data: null,
-      });
-    }
+      if (resetResult.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({
+          success: false,
+          message: "無効な再設定リンクです。",
+          data: null,
+        });
+      }
 
-    const reset = resetResult.rows[0];
+      const reset = resetResult.rows[0];
 
-    if (reset.role === "lock") {
-      await client.query("ROLLBACK");
-      return res.status(403).json({
-        success: false,
-        message: "このアカウントはロックされています。",
-        data: null,
-      });
-    }
+      if (reset.role === "lock") {
+        await client.query("ROLLBACK");
+        return res.status(403).json({
+          success: false,
+          message: "このアカウントはロックされています。",
+          data: null,
+        });
+      }
 
-    const nowResult = await client.query(
-      `
-      SELECT CURRENT_TIMESTAMP AS now
-      ;
-      `,
-    );
-    const now = nowResult.rows[0].now;
+      const nowResult = await client.query(
+        `
+        SELECT CURRENT_TIMESTAMP AS now
+        ;
+        `,
+      );
+      const now = nowResult.rows[0].now;
 
-    if (new Date(now) > new Date(reset.expires_at)) {
+      if (new Date(now) > new Date(reset.expires_at)) {
+        await client.query(
+          `
+          DELETE FROM password_resets
+          WHERE user_id = $1
+          ;
+          `,
+          [reset.user_id],
+        );
+
+        await client.query("COMMIT");
+
+        return res.status(400).json({
+          success: false,
+          message: "再設定リンクの有効期限が切れています。",
+          data: null,
+        });
+      }
+
+      const passwordHash = await hashPassword(password);
+
+      await client.query(
+        `
+        UPDATE users
+        SET
+          password_hash = $1,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE
+          id = $2
+        ;
+        `,
+        [passwordHash, reset.user_id],
+      );
+
       await client.query(
         `
         DELETE FROM password_resets
@@ -677,46 +725,16 @@ router.post("/v1/reset-password", async (req, res) => {
 
       await client.query("COMMIT");
 
-      return res.status(400).json({
-        success: false,
-        message: "再設定リンクの有効期限が切れています。",
+      return res.status(200).json({
+        success: true,
+        message: "パスワードを再設定しました。",
         data: null,
       });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
     }
-
-    const passwordHash = await hashPassword(password);
-
-    await client.query(
-      `
-      UPDATE users
-      SET
-        password_hash = $1,
-        updated_at = CURRENT_TIMESTAMP
-      WHERE
-        id = $2
-      ;
-      `,
-      [passwordHash, reset.user_id],
-    );
-
-    await client.query(
-      `
-      DELETE FROM password_resets
-      WHERE user_id = $1
-      ;
-      `,
-      [reset.user_id],
-    );
-
-    await client.query("COMMIT");
-
-    return res.status(200).json({
-      success: true,
-      message: "パスワードを再設定しました。",
-      data: null,
-    });
   } catch (error) {
-    await client.query("ROLLBACK");
     return res.status(500).json({
       success: false,
       message:
@@ -845,8 +863,9 @@ router.post("/v1/signin", async (req, res) => {
 // ユーザのトークン認証
 router.get("/v1/me", authenticateToken, async (req, res) => {
   console.log("/user/v1/me");
+  const client = await pool.connect();
   try {
-    const user = await pool.query(
+    const user = await client.query(
       `SELECT id, name, email, role FROM users WHERE id = $1`,
       [req.user.id],
     );
@@ -863,6 +882,8 @@ router.get("/v1/me", authenticateToken, async (req, res) => {
       message: "認証に失敗しました 管理者に問い合わせしてください",
       data: null,
     });
+  } finally {
+    client.release();
   }
 });
 

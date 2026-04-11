@@ -1,5 +1,7 @@
 import { toNullIfEmpty } from "./normalizeDatabese.js";
 
+const ALLOWED_TABLES = new Set(["publishers", "genres"]);
+
 // cover_nameの取得
 export const getCoverNameFromDb = async (client, bookId) => {
   const coverName =
@@ -38,6 +40,9 @@ export const setCoverNameToDb = async (client, bookId, coverNameOrNull) => {
 // table から value を検索する
 // すでに存在すればその ID を返す。なければ insert して ID を返す。
 export const getOrCreateByName = async (client, table, value) => {
+  if (!ALLOWED_TABLES.has(table)) {
+    throw new Error(`Unsupported table: ${table}`);
+  }
   const name = toNullIfEmpty(value);
   if (!name) {
     return null;

@@ -1,6 +1,52 @@
 const BASE_URL = "/api";
 
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const defaultError = {
+  success: false,
+  message: "通信に失敗しました。時間をおいて再度お試しください。",
+  data: null,
+};
+
+const parseResponseBody = async (res) => {
+  const contentType = res.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    return res.json();
+  }
+
+  const text = await res.text();
+  if (!text) {
+    return null;
+  }
+
+  return {
+    success: res.ok,
+    message: text,
+    data: null,
+  };
+};
+
+const normalizeResponse = (res, body) => {
+  if (body && typeof body === "object" && "success" in body) {
+    return body;
+  }
+
+  if (res.ok) {
+    return {
+      success: true,
+      message: "",
+      data: body,
+    };
+  }
+
+  return {
+    success: false,
+    message:
+      body && typeof body === "object" && "message" in body
+        ? body.message
+        : `リクエストに失敗しました (${res.status})`,
+    data: body && typeof body === "object" && "data" in body ? body.data : null,
+  };
+};
 
 const baseFetch = async (pathOrUrl, options = {}) => {
   // pathOrUrl を http://~~ の形式にする。
@@ -21,12 +67,15 @@ const baseFetch = async (pathOrUrl, options = {}) => {
       delete headers["Content-Type"];
     }
   }
-  const [res] = await Promise.all([
-    fetch(url, { ...options, headers }),
-    delay(0),
-  ]);
-  const json = await res.json();
-  return json;
+
+  try {
+    const res = await fetch(url, { ...options, headers });
+    const bodyData = await parseResponseBody(res);
+    return normalizeResponse(res, bodyData);
+  } catch (error) {
+    console.log("fetch failed:", error);
+    return defaultError;
+  }
 };
 
 // 認証あり

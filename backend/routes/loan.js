@@ -52,123 +52,123 @@ router.post("/v1/application/register", authenticateToken, async (req, res) => {
       });
     }
 
-    // クエリの開始
-    await client.query("BEGIN");
+    try {
+      await client.query("BEGIN");
 
-    // 貸出可能か最終確認
-    const existingStock = await client.query(
-      `
-      SELECT
-        *
-      FROM (
+      const existingStock = await client.query(
+        `
         SELECT
-          b.id,
-          b.stock_count - COUNT(lh.id) FILTER (
-            WHERE
-              lh.status = 'approved'
-              OR lh.status = 'return_pending'
-          ) AS available
-        FROM
-          books b
-        LEFT JOIN
-          loan_histories lh
-            ON lh.book_id = b.id
+          *
+        FROM (
+          SELECT
+            b.id,
+            b.stock_count - COUNT(lh.id) FILTER (
+              WHERE
+                lh.status = 'approved'
+                OR lh.status = 'return_pending'
+            ) AS available
+          FROM
+            books b
+          LEFT JOIN
+            loan_histories lh
+              ON lh.book_id = b.id
+          WHERE
+            b.id = $1
+          GROUP BY b.id
+        ) sub
         WHERE
-          b.id = $1
-        GROUP BY b.id
-      ) sub
-      WHERE
-        available > 0
-      LIMIT
-        1
-      ;
-      `,
-      [bookId],
-    );
-    if (existingStock.rows.length <= 0) {
-      return res.status(404).json({
-        success: false,
-        message: "貸出可能な本がありませんでした。",
-        data: null,
-      });
-    }
+          available > 0
+        LIMIT
+          1
+        ;
+        `,
+        [bookId],
+      );
+      if (existingStock.rows.length <= 0) {
+        await client.query("ROLLBACK");
+        return res.status(404).json({
+          success: false,
+          message: "貸出可能な本がありませんでした。",
+          data: null,
+        });
+      }
 
-    // 貸出申請の登録
-    const insertApplicationResult = await client.query(
-      `
-      INSERT INTO
-        loan_histories (
-          user_id,
-          book_id,
-          status,
-          approved_by
+      const insertApplicationResult = await client.query(
+        `
+        INSERT INTO
+          loan_histories (
+            user_id,
+            book_id,
+            status,
+            approved_by
+          )
+        VALUES (
+          $1, $2, $3, $4
         )
-      VALUES (
-        $1, $2, $3, $4
-      )
-      RETURNING
-        id
-      ;
-      `,
-      [userId, bookId, "pending", approverId],
-    );
-    const applicationId = insertApplicationResult.rows[0].id;
+        RETURNING
+          id
+        ;
+        `,
+        [userId, bookId, "pending", approverId],
+      );
+      const applicationId = insertApplicationResult.rows[0].id;
 
-    const user = await client.query(
-      `
-      SELECT
-        *
-      FROM
-        users
-      WHERE
-        id = $1
-      `,
-      [userId],
-    );
+      const user = await client.query(
+        `
+        SELECT
+          *
+        FROM
+          users
+        WHERE
+          id = $1
+        `,
+        [userId],
+      );
 
-    const approver = await client.query(
-      `
-      SELECT
-        *
-      FROM
-        users
-      WHERE
-        id = $1
-      `,
-      [approverId],
-    );
+      const approver = await client.query(
+        `
+        SELECT
+          *
+        FROM
+          users
+        WHERE
+          id = $1
+        `,
+        [approverId],
+      );
 
-    const book = await client.query(
-      `
-      SELECT
-        *
-      FROM
-        books
-      WHERE
-        id = $1
-      `,
-      [bookId],
-    );
+      const book = await client.query(
+        `
+        SELECT
+          *
+        FROM
+          books
+        WHERE
+          id = $1
+        `,
+        [bookId],
+      );
 
-    // メールの送信
-    await sendRegisterApplication({
-      to: approver.rows[0].email,
-      user: user.rows[0].name,
-      approver: approver.rows[0].name,
-      book: book.rows[0].title,
-    });
+      await sendRegisterApplication({
+        to: approver.rows[0].email,
+        user: user.rows[0].name,
+        approver: approver.rows[0].name,
+        book: book.rows[0].title,
+      });
 
-    // クエリの終了
-    await client.query("COMMIT");
+      await client.query("COMMIT");
 
-    return res.status(201).json({
-      success: true,
-      message: "申請を受け付けました。",
-      data: { applicationId },
-    });
+      return res.status(201).json({
+        success: true,
+        message: "申請を受け付けました。",
+        data: { applicationId },
+      });
+    } catch (e) {
+      await client.query("ROLLBACK");
+      throw e;
+    }
   } catch (e) {
     console.log(e);
-    await client.query("ROLLBACK");
     return res.status(500).json({
       success: false,
       message: "登録に失敗しました。管理者に問い合わせしてください。",
@@ -354,21 +354,20 @@ router.put(
       const userId = req.user.id;
 
       // 更新可能か
-      const loanStatus = (
-        await client.query(
-          `
-          SELECT
-            status
-          FROM
-            loan_histories
-          WHERE
-            id = $1
-            AND user_id = $2
-          ;
-          `,
-          [loanId, userId],
-        )
-      ).rows[0].status;
+      const loanStatusResult = await client.query(
+        `
+        SELECT
+          status
+        FROM
+          loan_histories
+        WHERE
+          id = $1
+          AND user_id = $2
+        ;
+        `,
+        [loanId, userId],
+      );
+      const loanStatus = loanStatusResult.rows[0]?.status;
 
       if (!loanStatus) {
         return res.status(404).json({
@@ -387,99 +386,99 @@ router.put(
         });
       }
 
-      // クエリの開始
-      await client.query("BEGIN");
+      try {
+        await client.query("BEGIN");
 
-      // ステータスの更新
-      await client.query(
-        `
-        UPDATE
-          loan_histories
-        SET
-          status = $1,
-          requested_at = CURRENT_TIMESTAMP
-        WHERE
-          id = $2
-        ;
-        `,
-        [nextStatus, loanId],
-      );
+        await client.query(
+          `
+          UPDATE
+            loan_histories
+          SET
+            status = $1,
+            requested_at = CURRENT_TIMESTAMP
+          WHERE
+            id = $2
+          ;
+          `,
+          [nextStatus, loanId],
+        );
 
-      const loan = await client.query(
-        `
-        SELECT
-          book_id,
-          approved_by
-        FROM
-          loan_histories
-        WHERE
-          id = $1
-        ;
-        `,
-        [loanId],
-      );
+        const loan = await client.query(
+          `
+          SELECT
+            book_id,
+            approved_by
+          FROM
+            loan_histories
+          WHERE
+            id = $1
+          ;
+          `,
+          [loanId],
+        );
 
-      const user = await client.query(
-        `
-        SELECT
-          *
-        FROM
-          users
-        WHERE
-          id = $1
-        ;
-        `,
-        [userId],
-      );
+        const user = await client.query(
+          `
+          SELECT
+            *
+          FROM
+            users
+          WHERE
+            id = $1
+          ;
+          `,
+          [userId],
+        );
 
-      const approver = await client.query(
-        `
-        SELECT
-          *
-        FROM
-          users
-        WHERE
-          id = $1
-        ;
-        `,
-        [loan.rows[0].approved_by],
-      );
+        const approver = await client.query(
+          `
+          SELECT
+            *
+          FROM
+            users
+          WHERE
+            id = $1
+          ;
+          `,
+          [loan.rows[0].approved_by],
+        );
 
-      const book = await client.query(
-        `
-        SELECT
-          *
-        FROM
-          books
-        WHERE
-          id = $1
-        ;
-        `,
-        [loan.rows[0].book_id],
-      );
+        const book = await client.query(
+          `
+          SELECT
+            *
+          FROM
+            books
+          WHERE
+            id = $1
+          ;
+          `,
+          [loan.rows[0].book_id],
+        );
 
-      // メールの送信
-      await sendUpdateApplication({
-        to: approver.rows[0].email,
-        user: user.rows[0].name,
-        approver: approver.rows[0].name,
-        book: book.rows[0].title,
-        status: nextStatus,
-      });
+        await sendUpdateApplication({
+          to: approver.rows[0].email,
+          user: user.rows[0].name,
+          approver: approver.rows[0].name,
+          book: book.rows[0].title,
+          status: nextStatus,
+        });
 
-      // クエリの終了
-      await client.query("COMMIT");
+        await client.query("COMMIT");
 
-      return res.status(200).json({
-        success: true,
-        message: "申請を更新しました。",
-        data: { loanId },
-      });
+        return res.status(200).json({
+          success: true,
+          message: "申請を更新しました。",
+          data: { loanId },
+        });
+      } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
+      }
     } catch (e) {
       console.log(e);
-      await client.query("ROLLBACK");
       return res.status(500).json({
-        success: true,
+        success: false,
         message:
           "申請を更新できませんでした 管理者に問い合わせをしてください。",
         data: null,
@@ -673,20 +672,19 @@ router.put(
       const userId = req.user.id;
 
       // 承認可能か
-      const loanStatus = (
-        await client.query(
-          `
-          SELECT
-            status
-          FROM
-            loan_histories
-          WHERE
-            id = $1
-            AND approved_by = $2
-          `,
-          [loanId, userId],
-        )
-      ).rows[0].status;
+      const loanStatusResult = await client.query(
+        `
+        SELECT
+          status
+        FROM
+          loan_histories
+        WHERE
+          id = $1
+          AND approved_by = $2
+        `,
+        [loanId, userId],
+      );
+      const loanStatus = loanStatusResult.rows[0]?.status;
 
       if (!loanStatus) {
         return res.status(404).json({
@@ -705,108 +703,116 @@ router.put(
         });
       }
 
-      // ステータスの更新
-      if (nextStatus === "approved") {
-        await client.query(
+      try {
+        await client.query("BEGIN");
+
+        if (nextStatus === "approved") {
+          await client.query(
+            `
+            UPDATE
+              loan_histories
+            SET
+              status = $1,
+              approved_at = CURRENT_TIMESTAMP,
+              loan_start_at = CURRENT_TIMESTAMP,
+              loan_end_at = CURRENT_TIMESTAMP + INTERVAL '14 days'
+            WHERE
+              id = $2
+            ;
+            `,
+            ["approved", loanId],
+          );
+        }
+
+        if (nextStatus === "returned") {
+          await client.query(
+            `
+            UPDATE
+              loan_histories
+            SET
+              status = $1,
+              returned_at = CURRENT_TIMESTAMP
+            WHERE
+              id = $2
+            ;
+            `,
+            ["returned", loanId],
+          );
+        }
+
+        const loan = await client.query(
           `
-          UPDATE
+          SELECT
+            user_id,
+            book_id,
+            approved_by
+          FROM
             loan_histories
-          SET
-            status = $1,
-            approved_at = CURRENT_TIMESTAMP,
-            loan_start_at = CURRENT_TIMESTAMP,
-            loan_end_at = CURRENT_TIMESTAMP + INTERVAL '14 days'
           WHERE
-            id = $2
+            id = $1
           ;
           `,
-          ["approved", loanId],
+          [loanId],
         );
-      }
 
-      if (nextStatus === "returned") {
-        await client.query(
+        const user = await client.query(
           `
-          UPDATE
-            loan_histories
-          SET
-            status = $1,
-            returned_at = CURRENT_TIMESTAMP
+          SELECT
+            *
+          FROM
+            users
           WHERE
-            id = $2
+            id = $1
           ;
           `,
-          ["returned", loanId],
+          [loan.rows[0].user_id],
         );
+
+        const approver = await client.query(
+          `
+          SELECT
+            *
+          FROM
+            users
+          WHERE
+            id = $1
+          ;
+          `,
+          [loan.rows[0].approved_by],
+        );
+
+        const book = await client.query(
+          `
+          SELECT
+            *
+          FROM
+            books
+          WHERE
+            id = $1
+          ;
+          `,
+          [loan.rows[0].book_id],
+        );
+
+        await sendUpdateApproval({
+          to: user.rows[0].email,
+          user: user.rows[0].name,
+          approver: approver.rows[0].name,
+          book: book.rows[0].title,
+          status: nextStatus,
+        });
+
+        await client.query("COMMIT");
+
+        return res.status(200).json({
+          success: true,
+          message: "承認を更新しました。",
+          data: { loanId },
+        });
+      } catch (e) {
+        await client.query("ROLLBACK");
+        throw e;
       }
-
-      const loan = await client.query(
-        `
-        SELECT
-          book_id,
-          approved_by
-        FROM
-          loan_histories
-        WHERE
-          id = $1
-        ;
-        `,
-        [loanId],
-      );
-
-      const user = await client.query(
-        `
-        SELECT
-          *
-        FROM
-          users
-        WHERE
-          id = $1
-        ;
-        `,
-        [userId],
-      );
-
-      const approver = await client.query(
-        `
-        SELECT
-          *
-        FROM
-          users
-        WHERE
-          id = $1
-        ;
-        `,
-        [loan.rows[0].approved_by],
-      );
-
-      const book = await client.query(
-        `
-        SELECT
-          *
-        FROM
-          books
-        WHERE
-          id = $1
-        ;
-        `,
-        [loan.rows[0].book_id],
-      );
-
-      // メールの送信
-      await sendUpdateApproval({
-        to: user.rows[0].email,
-        user: user.rows[0].name,
-        approver: approver.rows[0].name,
-        book: book.rows[0].title,
-        status: nextStatus,
-      });
-
-      return res.status(200).json({
-        success: true,
-        message: "承認を更新しました。",
-        data: { loanId },
-      });
     } catch (e) {
       console.log(e);
       return res.status(500).json({

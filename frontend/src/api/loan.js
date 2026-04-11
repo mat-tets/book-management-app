@@ -15,8 +15,8 @@ export const registerApplication = async (registerData, token) => {
 
 // 申請の取得
 export const retrieveApplications = async (params, token) => {
-  const query = new URLSearchParams(params).toString() ?? "";
-  const path = `/loan/v1/application/retrieve?${query}`;
+  const query = new URLSearchParams(params).toString();
+  const path = `/loan/v1/application/retrieve${query ? `?${query}` : ""}`;
   return apiFetch(
     path,
     {
@@ -41,8 +41,8 @@ export const updateApplication = async (loanId, updateData, token) => {
 
 // 承認の取得
 export const retrieveApprovals = async (params = {}, token) => {
-  const query = new URLSearchParams(params).toString() ?? "";
-  const path = `/loan/v1/approval/retrieve?${query}`;
+  const query = new URLSearchParams(params).toString();
+  const path = `/loan/v1/approval/retrieve${query ? `?${query}` : ""}`;
   return apiFetch(
     path,
     {

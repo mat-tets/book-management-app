@@ -15,8 +15,8 @@ export const registerUser = async (registerData, token) => {
 
 // ユーザの取得
 export const retrieveUsers = async (params = {}, token) => {
-  const query = new URLSearchParams(params).toString() ?? "";
-  const path = `/user/v1/retrieve?${query}`;
+  const query = new URLSearchParams(params).toString();
+  const path = `/user/v1/retrieve${query ? `?${query}` : ""}`;
   return apiFetch(
     path,
     {
