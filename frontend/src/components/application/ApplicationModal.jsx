@@ -155,7 +155,8 @@ const ApplicationModal = () => {
       <ApplicationDetail
         application={sourceApplication}
         opt={{
-          header: true,
+          title: true,
+          authors: true,
           requestedAt: true,
           approverName: true,
           loanStartAt: true,

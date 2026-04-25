@@ -17,7 +17,7 @@ const ApprovalDetail = ({ approval, opt = {} }) => {
             {approval.titleTranscription || "-"}
           </p>
         )}
-        {(opt.header || opt.titleTranscription) && (
+        {(opt.header || opt.title) && (
           <h2 className={styles.title}>{approval.title || "-"}</h2>
         )}
         {(opt.header || opt.authors) && (

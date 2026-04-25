@@ -56,7 +56,8 @@ const LoanBookModal = () => {
         <BookDetail
           book={sourceBook}
           opt={{
-            header: true,
+            title: true,
+            authors: true,
             edition: true,
             publisherName: true,
             publishDate: true,

@@ -35,7 +35,8 @@ const ApprovalList = ({ approvals }) => {
             <ApprovalDetail
               approval={approval}
               opt={{
-                header: true,
+                title: true,
+                authors: true,
                 requestedAt: true,
                 userName: true,
                 loanStartAt: true,

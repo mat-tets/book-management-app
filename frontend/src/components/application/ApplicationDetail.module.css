@@ -1,12 +1,12 @@
 .root {
   display: grid;
-  gap: var(--space-xs);
+  gap: var(--space-md);
 }
 
 .header {
   display: grid;
   align-items: center;
-  gap: var(--space-3xs);
+  gap: var(--space-md);
 }
 
 .titleTranscription {

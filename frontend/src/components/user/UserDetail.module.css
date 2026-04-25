@@ -1,12 +1,12 @@
 .root {
   display: grid;
-  gap: var(--space-xs);
+  gap: var(--space-md);
 }
 
 .header {
   display: grid;
   align-items: center;
-  gap: var(--space-3xs);
+  gap: var(--space-md);
 }
 
 .titleTranscription {
@@ -32,7 +32,7 @@
 
 .detail {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--space-sm);
   padding: var(--space-sm);
 }

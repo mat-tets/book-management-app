@@ -24,6 +24,13 @@ const initialDraft = {
   role: "general",
 };
 
+const roleMap = {
+  lock: "不可ユーザ",
+  general: "一般ユーザ",
+  approver: "承認ユーザ",
+  admin: "管理ユーザ",
+};
+
 const RegisterUserPage = () => {
   const navigateVT = useNavigateWithViewTransition();
 
@@ -74,7 +81,7 @@ const RegisterUserPage = () => {
           `ユーザ名: ${draft.name}`,
           `メールアドレス: ${draft.email}`,
           `パスワード: ${draft.password}`,
-          `ロール: ${draft.role}`,
+          `ロール: ${roleMap[draft.role]}`,
         ],
         confirmLabel: "OK",
         cancelLabel: "閉じる",

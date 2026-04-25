@@ -47,7 +47,8 @@ const BookList = ({ books, opt = {} }) => {
             <BookDetail
               book={book}
               opt={{
-                header: true,
+                title: true,
+                authors: true,
                 publisherName: true,
                 publishDate: true,
                 genreName: true,

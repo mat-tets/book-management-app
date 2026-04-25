@@ -38,7 +38,8 @@ const ApplicationList = ({ applications }) => {
             <ApplicationDetail
               application={application}
               opt={{
-                header: true,
+                title: true,
+                authors: true,
                 requestedAt: true,
                 approverName: true,
                 loanStartAt: true,

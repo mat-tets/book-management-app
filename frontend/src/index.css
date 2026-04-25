@@ -70,7 +70,9 @@
 
   --box-shadow: rgba(0, 0, 0, 0.15) 0px 2px 8px;
 
-  --font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  --font-family:
+    "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans",
+    "Noto Sans JP", sans-serif;
 }
 
 html {

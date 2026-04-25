@@ -33,12 +33,13 @@
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-md);
   justify-content: flex-end;
 }
 
 .actions button {
-  max-width: 8rem;
+  max-width: 10rem;
   height: 3rem;
   font-size: var(--text-sm);
   border-radius: var(--radius-3xl);

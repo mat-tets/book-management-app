@@ -9,7 +9,7 @@ const BookDetail = ({ book, opt = {} }) => {
             {book.titleTranscription || "-"}
           </p>
         )}
-        {(opt.header || opt.titleTranscription) && (
+        {(opt.header || opt.title) && (
           <h2 className={styles.title}>{book.title || "-"}</h2>
         )}
         {(opt.header || opt.authors) && (

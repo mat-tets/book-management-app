@@ -167,7 +167,7 @@
 }
 
 .actions button {
-  max-width: 8rem;
+  max-width: 10rem;
   height: 3rem;
   font-size: var(--text-sm);
   border-radius: var(--radius-3xl);
